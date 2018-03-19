@@ -53,7 +53,7 @@ float sensorsRawToBin(const uint16_t* sensorsRaw, uint8_t* _sensorsScaledAndCons
     binarizedValue = binarizedValue/(float)numberOfSensorReading;
     lastValidValue = binarizedValue;
   }
-  else binarizedValue = lastValidValue * 1.3f;//line lost -> get last valid and add some weight
+  else binarizedValue = lastValidValue * parameters.misc.backToTrackForce;//line lost -> get last valid and add some weight
   
   return binarizedValue;
 }

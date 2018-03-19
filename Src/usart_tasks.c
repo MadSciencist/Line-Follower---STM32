@@ -47,7 +47,8 @@ void uart_write_parameters(RobotParameters_t* p)
   uart_write_byte(MotorLeftDType, p->left.derivativeType); 
   uart_write_double(MotorLeftILimit, p->left.I_limit);
   uart_write_double(MotorLeftMaxSpeed, p->left.MaxSpeed);
-  uart_write_double(MotorLeftMinSpeed, p->left.MinSpeed);
+  //uart_write_double(MotorLeftMinSpeed, p->left.MinSpeed);
+  uart_write_double(MotorLeftMinSpeed, p->misc.backToTrackForce);
   uart_write_double(MotorLeftSpeedOffset, p->left.SpeedOffset);
   
   uart_write_double(MotorRightP, p->right.kp);
@@ -223,14 +224,14 @@ void parse_data(const uint8_t* rec_buff)
     /*SENSORS*/
   case rSensorsP:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.sensors.kp = conv.f;
     PidSetParams(&PID_Sensors, parameters.sensors.kp, 0.0f, parameters.sensors.kd); 
     break;}
     
   case rSensorsD:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.sensors.kd = conv.f;
     PidSetParams(&PID_Sensors, parameters.sensors.kp, 0.0f, parameters.sensors.kd); 
     break;}
@@ -256,21 +257,21 @@ void parse_data(const uint8_t* rec_buff)
     /*MOTOR LEFT*/
   case rMotorLeftP:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.left.kp = conv.f;
     PidSetParams(&PID_Left, parameters.left.kp, parameters.left.ki, parameters.left.kd);
     break;}
     
   case rMotorLeftI:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.left.ki = conv.f;
     PidSetParams(&PID_Left, parameters.left.kp, parameters.left.ki, parameters.left.kd);
     break;}
     
   case rMotorLeftD:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.left.kd = conv.f;
     PidSetParams(&PID_Left, parameters.left.kp, parameters.left.ki, parameters.left.kd);
     break;}
@@ -290,7 +291,7 @@ void parse_data(const uint8_t* rec_buff)
     
   case rMotorLeftILimit:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.left.I_limit = conv.f;
     PID_Left.negIntegralLimit = -1.0f * conv.f;
     PID_Left.posIntegralLimit = conv.f;
@@ -301,19 +302,26 @@ void parse_data(const uint8_t* rec_buff)
     
   case rMotorLeftMaxSpeed:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.left.MaxSpeed = conv.f;
     break;}
     
-  case rMotorLeftMinSpeed:{
+    /*added on robotic tournament*/
+    case rMotorLeftMinSpeed:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
-    parameters.left.MinSpeed = conv.f;
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
+    parameters.misc.backToTrackForce = conv.f;
     break;}
+    
+ /* case rMotorLeftMinSpeed:{
+    doubleConverter_t conv;
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
+    parameters.left.MinSpeed = conv.f;
+    break;}*/
     
   case rMotorLeftSpeedOffset:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.left.SpeedOffset = conv.f;
     break;}
     
@@ -321,21 +329,21 @@ void parse_data(const uint8_t* rec_buff)
     /*MOTOR RIGHT*/
   case rMotorRightP:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.right.kp = conv.f;
     PidSetParams(&PID_Right, parameters.right.kp, parameters.right.ki, parameters.right.kd);
     break;}
     
   case rMotorRightI:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.right.ki = conv.f;
     PidSetParams(&PID_Right, parameters.right.kp, parameters.right.ki, parameters.right.kd);
     break;}
     
   case rMotorRightD:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.right.kd = conv.f;
     PidSetParams(&PID_Right, parameters.right.kp, parameters.right.ki, parameters.right.kd);
     break;}
@@ -355,7 +363,7 @@ void parse_data(const uint8_t* rec_buff)
     
   case rMotorRightILimit:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.right.I_limit = conv.f;
     PID_Right.negIntegralLimit = -1.0f * conv.f;
     PID_Right.posIntegralLimit = conv.f;
@@ -366,19 +374,19 @@ void parse_data(const uint8_t* rec_buff)
     
   case rMotorRightMaxSpeed:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.right.MaxSpeed = conv.f;
     break;}
     
   case rMotorRightMinSpeed:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.right.MinSpeed = conv.f;
     break;}
     
   case rMotorRightSpeedOffset:{
     doubleConverter_t conv;
-    memcpy(&conv.fBuff[0], &rec_buff[2], SIZEOF_BUFFER);
+    memcpy(&conv.fBuff[0], &rec_buff[2], sizeof(double));
     parameters.right.SpeedOffset = conv.f;
     break;}
     

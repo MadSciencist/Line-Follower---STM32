@@ -119,6 +119,7 @@ typedef struct{
   volatile uint16_t uartUpdateRate;
   uint8_t sensorBinaryThreshold;
   uint8_t isWhiteOnBlack; /* 1 it is, 0 it is black board with white line */
+  double backToTrackForce;
 } uartMiscParameters_t;
 
 typedef struct{

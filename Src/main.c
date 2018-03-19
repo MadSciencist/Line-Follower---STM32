@@ -65,11 +65,12 @@
 //PID variables
 volatile float sensorsSetpoint = 0.0f, sensorsFeedback  = 0.0f, sensorsOutput = 0.0f;
 float leftOutput = 0.0f, leftSet = 0.0f, rightOutput = 0.0f, rightSet = 0.0f;
+float prevSensorsFeedback = 0.0f;
 PID_Properties_t PID_Left, PID_Right, PID_Sensors;
 
 //tests
 int m1 = 0, m2 = 0;
-
+float test = 10;
 
 //ADC  Variables
 uint16_t ADC_RAW[ADC_MEASUREMENTS];
@@ -102,33 +103,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if(htim->Instance == TIM11){ //2 ms loop
      // __disable_irq();
-    static float prevSensorsFeedback = 0.0f;
-    
-    sensorsFeedback = sensorsRawToBin(ADC_RAW, sensorsScaledAndConstrained, parameters.sensors.calibrationMaxValues, parameters.sensors.calibrationMinValues, binarizedSensors);
-    //PD(&PID_Sensors, &sensorsSetpoint, &sensorsFeedback, &sensorsOutput, (derivative_t)parameters.sensors.derivativeType, noReverse);
-    float PDout = (sensorsFeedback * PID_Sensors.kp) - ((sensorsFeedback - prevSensorsFeedback) * PID_Sensors.kd);
-    if(PDout > 100.0f) PDout = 100.0f;
-    if(PDout < -100.0f) PDout = -100.0f;
-    
-    leftSet = parameters.left.SpeedOffset + PDout;
-    rightSet = parameters.right.SpeedOffset - PDout;
-    
-    if(leftSet < 0.0f) leftSet = 0.0f;
-    if(rightSet < 0.0f) rightSet = 0.0f;
-    leftSet = constrainSetSpeed(leftSet, parameters.left.MaxSpeed);
-    rightSet = constrainSetSpeed(rightSet, parameters.right.MaxSpeed);
-       
- 
     calculateSpeed(&speedLeft, &speedRight);
+    PID(&PID_Left, &test, &speedLeft, &leftOutput, (derivative_t)parameters.left.derivativeType, noReverse);
+    PID(&PID_Right, &test, &speedRight, &rightOutput, (derivative_t)parameters.right.derivativeType, noReverse);
     PID(&PID_Left, &leftSet, &speedLeft, &leftOutput, (derivative_t)parameters.left.derivativeType, noReverse);
     PID(&PID_Right, &rightSet, &speedRight, &rightOutput, (derivative_t)parameters.right.derivativeType, noReverse);
-     
+    
     if(motorsEnabled)
     {
      Motor1DriveByPid((int)leftOutput); //motor1 - lewy
      Motor2DriveByPid((int)rightOutput);
     }
-    prevSensorsFeedback = sensorsFeedback;
   }
 }
 /* USER CODE END PFP */
@@ -190,14 +175,38 @@ int main(void)
   HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_ALL);
   HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC_RAW, ADC_MEASUREMENTS); //25 us whole cycle
-  HAL_UART_Receive_DMA(&huart1, Received, SIZEOF_RECEIVING_BUFFER);  
+  HAL_UART_Receive_DMA(&huart1, Received, SIZEOF_RECEIVING_BUFFER); 
   
+ 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    /*calc PD */
+    
+    prevSensorsFeedback = 0.0f;
+    
+    sensorsFeedback = sensorsRawToBin(ADC_RAW, sensorsScaledAndConstrained, parameters.sensors.calibrationMaxValues, parameters.sensors.calibrationMinValues, binarizedSensors);
+    //PD(&PID_Sensors, &sensorsSetpoint, &sensorsFeedback, &sensorsOutput, (derivative_t)parameters.sensors.derivativeType, noReverse);
+    float PDout = (sensorsFeedback * PID_Sensors.kp) - ((sensorsFeedback - prevSensorsFeedback) * PID_Sensors.kd);
+    if(PDout > 100.0f) PDout = 100.0f;
+    if(PDout < -100.0f) PDout = -100.0f;
+    
+    leftSet = parameters.left.SpeedOffset + PDout;
+    rightSet = parameters.right.SpeedOffset - PDout;
+    
+    if(leftSet < 0.0f) leftSet = 0.0f;
+    if(rightSet < 0.0f) rightSet = 0.0f;
+    leftSet = constrainSetSpeed(leftSet, parameters.left.MaxSpeed);
+    rightSet = constrainSetSpeed(rightSet, parameters.right.MaxSpeed);
+    
+    prevSensorsFeedback = sensorsFeedback;
+    
+    /* end of PD moved from IRQ */
+    
+    
     TickStart = HAL_GetTick();
     TickStartShort = TickStart;
     
@@ -346,6 +355,7 @@ void FillParametersFakeData()
   parameters.right.MaxSpeed = 5.14;
   parameters.right.MinSpeed = 6.14;
   parameters.right.SpeedOffset = 7.14;
+  parameters.misc.backToTrackForce = 1.0;
 }
 
 void ZeroAllRequests()
@@ -372,7 +382,7 @@ void presetPID()
   PID_Left.posIntegralLimit = parameters.left.I_limit;
   PID_Left.negOutputLimit = -1.0*parameters.left.I_limit;
   PID_Left.posOutputLimit = parameters.left.I_limit;
-  PID_Left.period = 2;
+  PID_Left.period = 1;
   PidSetParams(&PID_Left, parameters.left.kp, parameters.left.ki, parameters.left.kd);
   
   parameters.right.MaxSpeed = parameters.right.I_limit;
@@ -380,14 +390,14 @@ void presetPID()
   PID_Right.posIntegralLimit = parameters.right.I_limit;
   PID_Right.negOutputLimit = -1.0*parameters.right.I_limit;
   PID_Right.posOutputLimit = parameters.right.I_limit;
-  PID_Right.period = 2;
+  PID_Right.period = 1;
   PidSetParams(&PID_Right, parameters.right.kp, parameters.right.ki, parameters.right.kd);
   
   PID_Sensors.negIntegralLimit = 0.0f;
   PID_Sensors.posIntegralLimit = 0.0f;
   PID_Sensors.negOutputLimit = -100.0f;
   PID_Sensors.posOutputLimit = 100;
-  PID_Sensors.period = 2;
+  PID_Sensors.period = 1;
   PidSetParams(&PID_Sensors, parameters.sensors.kp, 0.0f, parameters.sensors.kd);
 }
 
